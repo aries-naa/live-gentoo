@@ -1,0 +1,113 @@
+#!/bin/sh
+
+compile_kernel () {
+
+    root=$(chr -p live-build)
+
+    # genkernel config.
+    sudo sed '
+s/^.*INSTALL.*/INSTALL="yes"/
+s/^.*ARCH_OVERRIDE=.*/ARCH_OVERRIDE="x86_64"/
+s/^.*MOUNTBOOT=.*/MOUNTBOOT="no"/
+s/^.*SYMLINK=.*/SYMLINK="no"/
+s/^.*LVM=.*/LVM="no"/
+s/^.*LUKS=.*/LUKS="no"/
+s/^.*GPG=.*/GPG="no"/
+s/^.*DMRAID=.*/DMRAID="no"/
+s/^.*BUSYBOX=.*/BUSYBOX="yes"/
+s/^.*MDADM=.*/MDADM="no"/
+s/^.*ISCSI=.*/ISCSI="no"/
+s/^.*E2FSPROGS=.*/E2FSPROGS="no"/
+s/^.*ZFS=.*/ZFS="no"/
+s/^.*BTRFS=.*/BTRSF="no"/
+s/^.*FIRMWARE=.*/FIRMWARE="no"/
+s/^.*SPLASH=.*/SPLASH="no"/
+s/^.*BOOTDIR=.*/BOOTDIR="\/boot"/
+s/^MENUCONFIG/#MENUCONFIG/' -i ${root}/etc/genkernel.conf
+
+    kversion=$(chr live-build equery -q list sys-kernel/gentoo-sources -F '$fullversion')
+    chr live-build mkdir -p /etc/kernels
+    sudo cp config/kernel/kernel-config-x86-${kversion}-gentoo-x64 ${root}/etc/kernels
+    pkg_dir=$(chr live-build emerge --info | grep PKGDIR | sed "s/PKGDIR=\"\(.*\)\"/\1/g")
+    chr live-build mkdir -p ${pkg_dir}/kernel
+    chr live-build genkernel --no-menuconfig --kernel-config=/etc/kernels/kernel-config-x86-${kversion}-gentoo-x64 kernel
+    #chr live-build tar -C / -Jcvf ${pkg_dir}/kernel/kernel-${kversion}-gentoo.tar.xz boot/System.map-genkernel-x86-${kversion}-gentoo boot/kernel-genkernel-x86-${kversion}-gentoo lib/modules/${kversion}-gentoo
+
+}
+
+make_initrd () {
+
+    kversion=$(chr ${name} equery -q list sys-kernel/gentoo-sources -F '$fullversion')
+    root=$(chr -p ${name})
+
+    chr ${name} dracut -f --add-drivers 'virtio-net md4' -a 'live-boot cifs rootfs-block' -o 'iscsi nbd nfs mdraid btrfs dash multipath biosdevname plymouth i18n gensplash crypt modsign caps fcoe-uefi lvm dmraid usrmount bash resume' /boot/initrd ${kversion}-gentoo
+    chr ${name} chmod a+r ${root}/boot/initrd
+    sudo cp ${root}/boot/initrd gentoo/gentoo
+
+}
+
+arch=i686
+name=cross
+
+#chr ${name} emerge -K \
+#    app-portage/gentoolkit \
+#    \
+#    app-misc/mc \
+#    sys-power/acpi \
+#    sys-power/acpid \
+#    sys-libs/gpm \
+#    net-misc/dhcp \
+#    sys-apps/ethtool \
+#    sys-apps/less \
+#    sys-fs/lvm2 \
+#    net-fs/cifs-utils \
+#    sys-apps/net-tools \
+#    net-misc/iputils \
+#    x11-base/xorg-server \
+#    x11-drivers/xf86-video-mach64 \
+#    x11-drivers/xf86-video-mga \
+#    x11-drivers/xf86-video-r128 \
+#    x11-drivers/xf86-video-savage \
+#    x11-drivers/xf86-video-siliconmotion \
+#    x11-drivers/xf86-video-sisusb \
+#    x11-drivers/xf86-video-sis \
+#    x11-drivers/xf86-video-tdfx \
+#    x11-drivers/xf86-video-trident \
+#    x11-drivers/xf86-video-ati \
+#    x11-drivers/xf86-video-cirrus \
+#    x11-drivers/xf86-video-fbdev \
+#    x11-drivers/xf86-video-geode \
+#    x11-drivers/xf86-video-intel \
+#    x11-drivers/xf86-video-nouveau \
+#    x11-drivers/xf86-video-openchrome \
+#    x11-drivers/xf86-video-vesa \
+#    x11-drivers/xf86-video-qxl \
+#    x11-drivers/xf86-input-evdev \
+#    x11-drivers/xf86-input-aiptek \
+#    x11-drivers/xf86-input-joystick \
+#    x11-drivers/xf86-input-mutouch \
+#    x11-drivers/xf86-input-mtrack \
+#    x11-drivers/xf86-input-wacom \
+#    x11-drivers/xf86-input-keyboard \
+#    x11-drivers/xf86-input-evdev \
+#    x11-drivers/xf86-input-synaptics \
+#    x11-apps/xinit \
+#    x11-terms/xterm \
+#    x11-misc/lightdm \
+#    x11-misc/lightdm-gtk-greeter \
+#    x11-wm/openbox \
+#    sys-fs/ntfs3g \
+#    app-admin/rsyslog \
+#    app-editors/vim \
+#    media-sound/alsa-utils \
+#    media-sound/alsa-tools \
+#    sys-apps/acl \
+#    sys-apps/attr \
+#    sys-fs/mdadm \
+#    sys-fs/cryptsetup
+
+#    sys-fs/cryfs \
+#    sys-fs/ecryptfs-utils
+
+#compile_kernel
+make_initrd
